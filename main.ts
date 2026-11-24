@@ -1,30 +1,67 @@
-// Round-2 haiku for "Seventeen Syllables of Debugging".
-// Writes the winning haiku — three lines, 5-7-5, 68 characters — to
-// $MAKEFUN_OUTPUT_DIR/entry.txt (or /output/entry.txt by default),
-// verifying the 5-7-5 syllable shape at run time.
+// Seventeen Syllables of Debugging — final iteration.
+// Writes exactly one 5-7-5 haiku about debugging to
+// $MAKEFUN_OUTPUT_DIR/entry.txt. Node 22 stdlib only.
 import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
-// Syllable counts for every word in the haiku below.
-const syllables: Record<string, number> = {
-  git: 1, blame: 1, points: 1, at: 1, me: 1,
-  the: 1, commit: 2, is: 1, from: 1, last: 1, spring: 1,
-  i: 1, "don't": 1, remember: 3,
-};
-
-const haiku = [
-  "git blame points at me",
-  "the commit is from last spring",
-  "i don't remember",
+const HAIKU: readonly string[] = [
+  "just one small typo",
+  "three hours lost to find it",
+  "one comma missing",
 ];
 
-const shape = [5, 7, 5];
-haiku.forEach((line, i) => {
-  const count = line.split(" ").reduce((n, w) => n + (syllables[w] ?? 0), 0);
-  if (count !== shape[i]) {
-    throw new Error(`line ${i + 1}: ${count} syllables, expected ${shape[i]}`);
-  }
-});
+const TARGET = [5, 7, 5] as const;
 
-const outDir = process.env.MAKEFUN_OUTPUT_DIR || "/output";
+// Exact syllable counts for every word in the haiku. A lookup
+// table keeps the count exact instead of guessing with a
+// heuristic, so the 5-7-5 check is trustworthy.
+const SYLLABLES: Readonly<Record<string, number>> = {
+  just: 1,
+  one: 1,
+  small: 1,
+  typo: 2,
+  three: 1,
+  hours: 2,
+  lost: 1,
+  to: 1,
+  find: 1,
+  it: 1,
+  comma: 2,
+  missing: 2,
+};
+
+function countLine(line: string): number {
+  let total = 0;
+  for (const word of line.split(" ")) {
+    const n = SYLLABLES[word];
+    if (n === undefined) {
+      throw new Error(`no syllable count for word: ${word}`);
+    }
+    total += n;
+  }
+  return total;
+}
+
+for (let i = 0; i < HAIKU.length; i++) {
+  const got = countLine(HAIKU[i]);
+  if (got !== TARGET[i]) {
+    throw new Error(
+      `line ${i + 1}: expected ${TARGET[i]} syllables, got ${got}`,
+    );
+  }
+}
+
+const outDir = process.env.MAKEFUN_OUTPUT_DIR;
+if (!outDir) {
+  throw new Error("MAKEFUN_OUTPUT_DIR is not set");
+}
+
+const text = HAIKU.join("\n");
+if (text.length > 200) {
+  throw new Error(`haiku is ${text.length} chars, over the 200 limit`);
+}
+if (text.endsWith("\n")) {
+  throw new Error("haiku must not end with a trailing newline");
+}
 mkdirSync(outDir, { recursive: true });
-writeFileSync(`${outDir}/entry.txt`, haiku.join("\n"));
+writeFileSync(join(outDir, "entry.txt"), text, "utf8");
